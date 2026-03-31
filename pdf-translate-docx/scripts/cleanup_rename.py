@@ -57,45 +57,80 @@ def _sanitize(name: str) -> str:
 
 def build_book_citation(authors: list[str], editors: list[str],
                         title: str, publisher: str,
-                        year: str, topic: str) -> str:
+                        year: str, topic: str,
+                        lang: str = 'en',
+                        edition: str = '') -> str:
     """
     Build book citation string.
     authors / editors: list of 'Firstname Lastname' strings.
     Pass authors OR editors (not both).
+
+    English (lang='en'):
+      1 author:   Firstname Lastname, Title, Publisher (Year)
+      2 authors:  A and B, Title, Publisher (Year)
+      3+:         Firstname Lastname et al., Title, Publisher (Year)
+      editors:    ... (ed.) / (eds.)
+
+    German (lang='de'):
+      authors joined with '/':  Hans Brox/Wolf-Dietrich Walker, Titel, Aufl. Stadt Jahr
+      editors:                  ... (Hrsg.)
+      publisher = Verlagsort (city); edition = '44. Aufl.' etc.
     """
-    if authors:
+    if lang == 'de':
+        if authors:
+            names = '/'.join(authors)
+            credit = names
+        else:
+            names = '/'.join(editors)
+            credit = f'{names} (Hrsg.)'
+        topic_part = f'【{topic}】' if topic else ''
+        edition_part = f'{edition} ' if edition else ''
+        # German format: Author, Titel, Aufl. Verlagsort Jahr
+        return f'{topic_part}{credit}, {title}, {edition_part}{publisher} {year}'
+    else:
+        # English format
+        if authors:
+            if len(authors) == 1:
+                names = authors[0]
+            elif len(authors) == 2:
+                names = f'{authors[0]} and {authors[1]}'
+            else:
+                names = f'{authors[0]} et al.'
+            credit = names
+        else:
+            if len(editors) == 1:
+                names = editors[0]
+            elif len(editors) == 2:
+                names = f'{editors[0]} and {editors[1]}'
+            else:
+                names = f'{editors[0]} et al.'
+            suffix = '(ed.)' if len(editors) == 1 else '(eds.)'
+            credit = f'{names} {suffix}'
+        topic_part = f'【{topic}】' if topic else ''
+        return f'{topic_part}{credit}, {title}, {publisher} ({year})'
+
+
+def build_article_citation(authors: list[str],
+                           title: str, journal: str,
+                           volume: str, page: str,
+                           year: str,
+                           lang: str = 'en') -> str:
+    """
+    English: Author(s), Title, Journal, Vol.X, p.X (Year)
+    German:  Author(s), Titel, Zeitschrift Jahr, S. X
+             (no Vol.; year before page; S. not p.)
+    """
+    if lang == 'de':
+        names = '/'.join(authors)
+        return f'{names}, {title}, {journal} {year}, S. {page}'
+    else:
         if len(authors) == 1:
             names = authors[0]
         elif len(authors) == 2:
             names = f'{authors[0]} and {authors[1]}'
         else:
             names = f'{authors[0]} et al.'
-        credit = names
-    else:  # editors
-        if len(editors) == 1:
-            names = editors[0]
-        elif len(editors) == 2:
-            names = f'{editors[0]} and {editors[1]}'
-        else:
-            names = f'{editors[0]} et al.'
-        suffix = '(ed.)' if len(editors) == 1 else '(eds.)'
-        credit = f'{names} {suffix}'
-
-    topic_part = f'【{topic}】' if topic else ''
-    return f'{topic_part}{credit}, {title}, {publisher} ({year})'
-
-
-def build_article_citation(authors: list[str],
-                           title: str, journal: str,
-                           volume: str, page: str,
-                           year: str) -> str:
-    if len(authors) == 1:
-        names = authors[0]
-    elif len(authors) == 2:
-        names = f'{authors[0]} and {authors[1]}'
-    else:
-        names = f'{authors[0]} et al.'
-    return f'{names}, {title}, {journal}, Vol.{volume}, p.{page} ({year})'
+        return f'{names}, {title}, {journal}, Vol.{volume}, p.{page} ({year})'
 
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
@@ -136,6 +171,10 @@ def main():
                     help='Book topic for 【…】 bracket (books only)')
     ap.add_argument('--type',     choices=['book', 'article'], default=None,
                     help='Document type (book or article)')
+    ap.add_argument('--lang',     choices=['en', 'de'], default='en',
+                    help='Citation language style: en (English) or de (German)')
+    ap.add_argument('--edition',  default='',
+                    help='Edition string for German books, e.g. "44. Aufl."')
     ap.add_argument('--no-cleanup', action='store_true',
                     help='Skip deleting intermediate temp files')
     args = ap.parse_args()
@@ -147,27 +186,53 @@ def main():
         citation = args.citation
     else:
         doc_type = args.type or input('Type (book/article): ').strip()
+        lang = args.lang
         if doc_type == 'book':
-            raw_authors  = input('Authors (comma-separated, leave blank if editors): ').strip()
-            raw_editors  = input('Editors (comma-separated, leave blank if authors): ').strip()
-            title        = input('Title: ').strip()
-            publisher    = input('Publisher: ').strip()
-            year         = input('Year: ').strip()
-            topic        = args.topic or input('Topic for 【…】 (leave blank to omit): ').strip()
-            authors  = [a.strip() for a in raw_authors.split(',') if a.strip()]
-            editors  = [e.strip() for e in raw_editors.split(',') if e.strip()]
-            citation = build_book_citation(authors, editors, title,
-                                           publisher, year, topic)
+            if lang == 'de':
+                sep = '/'
+                raw_authors = input('Autoren (durch "/" getrennt, leer lassen für Herausgeber): ').strip()
+                raw_editors = input('Herausgeber (durch "/" getrennt, leer lassen für Autoren): ').strip()
+                title       = input('Titel: ').strip()
+                publisher   = input('Verlagsort (Stadt): ').strip()
+                year        = input('Jahr: ').strip()
+                edition     = args.edition or input('Auflage (z.B. "44. Aufl.", leer lassen wenn keine): ').strip()
+                topic       = args.topic or input('Thema für 【…】 (leer lassen zum Weglassen): ').strip()
+                authors = [a.strip() for a in raw_authors.split('/') if a.strip()]
+                editors = [e.strip() for e in raw_editors.split('/') if e.strip()]
+                citation = build_book_citation(authors, editors, title, publisher,
+                                               year, topic, lang='de', edition=edition)
+            else:
+                raw_authors = input('Authors (comma-separated, leave blank if editors): ').strip()
+                raw_editors = input('Editors (comma-separated, leave blank if authors): ').strip()
+                title       = input('Title: ').strip()
+                publisher   = input('Publisher: ').strip()
+                year        = input('Year: ').strip()
+                topic       = args.topic or input('Topic for 【…】 (leave blank to omit): ').strip()
+                authors = [a.strip() for a in raw_authors.split(',') if a.strip()]
+                editors = [e.strip() for e in raw_editors.split(',') if e.strip()]
+                citation = build_book_citation(authors, editors, title, publisher,
+                                               year, topic, lang='en')
         else:  # article
-            raw_authors = input('Authors (comma-separated): ').strip()
-            title       = input('Article title: ').strip()
-            journal     = input('Journal name: ').strip()
-            volume      = input('Volume: ').strip()
-            page        = input('Starting page: ').strip()
-            year        = input('Year: ').strip()
-            authors = [a.strip() for a in raw_authors.split(',') if a.strip()]
-            citation = build_article_citation(authors, title, journal,
-                                              volume, page, year)
+            if lang == 'de':
+                raw_authors = input('Autoren (durch "/" getrennt): ').strip()
+                title       = input('Titel des Aufsatzes: ').strip()
+                journal     = input('Zeitschrift: ').strip()
+                volume      = ''  # not used in German style
+                page        = input('Anfangsseite: ').strip()
+                year        = input('Jahr: ').strip()
+                authors = [a.strip() for a in raw_authors.split('/') if a.strip()]
+                citation = build_article_citation(authors, title, journal,
+                                                  volume, page, year, lang='de')
+            else:
+                raw_authors = input('Authors (comma-separated): ').strip()
+                title       = input('Article title: ').strip()
+                journal     = input('Journal name: ').strip()
+                volume      = input('Volume: ').strip()
+                page        = input('Starting page: ').strip()
+                year        = input('Year: ').strip()
+                authors = [a.strip() for a in raw_authors.split(',') if a.strip()]
+                citation = build_article_citation(authors, title, journal,
+                                                  volume, page, year, lang='en')
 
     safe_citation = _sanitize(citation)
     print(f'\nCitation: {citation}')

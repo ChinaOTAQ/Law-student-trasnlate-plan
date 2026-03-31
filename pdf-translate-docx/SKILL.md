@@ -159,7 +159,11 @@ uv run $SKILL/scripts/cleanup_rename.py \
 
 ### Citation format rules
 
-Books — generate the citation string then pass via --citation:
+Add `--lang en` (default) or `--lang de` to select style.
+
+#### English (--lang en)
+
+Books:
 ```
 Single author:   Firstname Lastname, Title, Publisher (Year)
 Two authors:     A Name and B Name, Title, Publisher (Year)
@@ -168,17 +172,35 @@ Two authors:     A Name and B Name, Title, Publisher (Year)
 2 editors:       A Name and B Name (eds.), Title, Publisher (Year)
 3+ editors:      Firstname Lastname et al. (eds.), Title, Publisher (Year)
 ```
-Prepend 【主题】 via --topic flag.
 
 Journal articles:
 ```
 Author(s), Article Title, Journal Name, Vol.X, p.X (Year)
 ```
 
+#### German (--lang de)
+
+Books — authors joined with `/`; publisher = Verlagsort (city); add `--edition "44. Aufl."` if applicable:
+```
+1 Autor:     Hans Brox, Titel, 44. Aufl. München 2021
+2 Autoren:   Hans Brox/Wolf-Dietrich Walker, Titel, München 2021
+Hrsg.:       Vorname Nachname (Hrsg.), Titel, Stadt Jahr
+```
+
+Zeitschriftenaufsätze — no Vol.; year before page; `S.` not `p.`:
+```
+Vorname Nachname, Titel, ZeitschriftAbk Jahr, S. X
+```
+
+Prepend 【主题】 via --topic flag for both languages.
+
 Final filenames:
 ```
 【主题】Stephen Bainbridge et al., Title, Publisher (2023).pdf
 【译文】【主题】Stephen Bainbridge et al., Title, Publisher (2023).docx
+
+【比较法】Ralf Michaels, Die Funktionsmethode, 2. Aufl. Tübingen 2006.pdf
+【译文】【比较法】Ralf Michaels, Die Funktionsmethode, 2. Aufl. Tübingen 2006.docx
 ```
 
 ---
