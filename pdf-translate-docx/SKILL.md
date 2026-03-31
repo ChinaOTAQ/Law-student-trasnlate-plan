@@ -159,48 +159,50 @@ uv run $SKILL/scripts/cleanup_rename.py \
 
 ### Citation format rules
 
-Add `--lang en` (default) or `--lang de` to select style.
+**Language is auto-detected** from PDF content. Override with `--lang en` or `--lang de`.
 
 #### English (--lang en)
 
-Books:
 ```
-Single author:   Firstname Lastname, Title, Publisher (Year)
-Two authors:     A Name and B Name, Title, Publisher (Year)
-3+ authors:      Firstname Lastname et al., Title, Publisher (Year)
-1 editor:        Firstname Lastname (ed.), Title, Publisher (Year)
-2 editors:       A Name and B Name (eds.), Title, Publisher (Year)
-3+ editors:      Firstname Lastname et al. (eds.), Title, Publisher (Year)
-```
-
-Journal articles:
-```
-Author(s), Article Title, Journal Name, Vol.X, p.X (Year)
+1 author:   Firstname Lastname, Title, Publisher (Year)
+2 authors:  A Name & B Name, Title, Publisher (Year)
+3 authors:  A Name, B Name & C Name, Title, Publisher (Year)
+4+ authors: Firstname Lastname et al., Title, Publisher (Year)
+editors:    ... (ed.) / (eds.)
+journal:    Author(s), Article Title, Journal, Vol.X, p.X (Year)
 ```
 
-#### German (--lang de)
+#### German (--lang de) — standard Fußnotenzitierweise
 
-Books — authors joined with `/`; publisher = Verlagsort (city); add `--edition "44. Aufl."` if applicable:
+Textbooks — authors by last name, joined `/`; use `--edition "X. Aufl."`:
 ```
-1 Autor:     Hans Brox, Titel, 44. Aufl. München 2021
-2 Autoren:   Hans Brox/Wolf-Dietrich Walker, Titel, München 2021
-Hrsg.:       Vorname Nachname (Hrsg.), Titel, Stadt Jahr
+Brox/Walker, Besonderes Schuldrecht, 35. Aufl., C.H.Beck, München 2011
 ```
 
-Zeitschriftenaufsätze — no Vol.; year before page; `S.` not `p.`:
+Journal articles — `ZeitschriftAbk Band (Jahr) Startseite ff.` (no S., no Vol.):
 ```
-Vorname Nachname, Titel, ZeitschriftAbk Jahr, S. X
+H. Koziol, Titel, AcP 196 (1996) 593 ff.
 ```
 
-Prepend 【主题】 via --topic flag for both languages.
+Festschrift / edited volume:
+```
+Claus-Wilhelm Canaris, Titel, in: Festschrift für Larenz, C.H.Beck, München 1983, S. 85
+```
+
+Editors use `(Hrsg.)`:
+```
+Bachmann/Roth (Hrsg.), Titel, C.H.Beck, München 2012
+```
+
+Prepend 【主题】 via --topic flag.
 
 Final filenames:
 ```
-【主题】Stephen Bainbridge et al., Title, Publisher (2023).pdf
-【译文】【主题】Stephen Bainbridge et al., Title, Publisher (2023).docx
+【侵权法】Brox/Walker, Besonderes Schuldrecht, 35. Aufl., C.H.Beck, München 2011.pdf
+【译文】【侵权法】Brox/Walker, Besonderes Schuldrecht, 35. Aufl., C.H.Beck, München 2011.docx
 
-【比较法】Ralf Michaels, Die Funktionsmethode, 2. Aufl. Tübingen 2006.pdf
-【译文】【比较法】Ralf Michaels, Die Funktionsmethode, 2. Aufl. Tübingen 2006.docx
+【比较法】Ralf Michaels, The Functional Method of Comparative Law, Oxford (2006).pdf
+【译文】【比较法】Ralf Michaels, The Functional Method of Comparative Law, Oxford (2006).docx
 ```
 
 ---

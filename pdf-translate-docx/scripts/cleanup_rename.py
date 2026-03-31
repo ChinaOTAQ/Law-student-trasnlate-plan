@@ -8,35 +8,52 @@ Actions:
   3. Rename the original .pdf     → <citation>.pdf
      (moved / copied to same output dir as docx)
 
+Language is auto-detected from PDF content; override with --lang en|de.
+
 Citation format rules
 ---------------------
-Books
-  Single author:
-    【主题】Firstname Lastname, Title, Publisher (Year)
-  Two authors:
-    【主题】A Name and B Name, Title, Publisher (Year)
-  2+ editors (no authors):
-    【主题】A Name and B Name (eds.), Title, Publisher (Year)
-  3+ authors → use first author + et al.:
-    【主题】Firstname Lastname et al., Title, Publisher (Year)
+English (--lang en)
+  1 author:   Firstname Lastname, Title, Publisher (Year)
+  2 authors:  A Name & B Name, Title, Publisher (Year)
+  3 authors:  A Name, B Name & C Name, Title, Publisher (Year)
+  4+ authors: Firstname Lastname et al., Title, Publisher (Year)
+  editors:    ... (ed.) / (eds.)
+  journal:    Author(s), Article Title, Journal, Vol.X, p.X (Year)
 
-Journal articles
-  Author(s) [same rules], Article Title, Journal Name, Vol.X, p.X (Year)
+German (--lang de)  — based on standard German Fußnotenzitierweise
+  Textbook:
+    Nachname/Nachname, Titel, X. Aufl., Verlag, Verlagsort Jahr
+    e.g. Brox/Walker, Besonderes Schuldrecht, 35. Aufl., C.H.Beck, München 2011
+  Journal article:
+    Vorname Nachname, Titel, ZeitschriftAbk Band (Jahr) Startseite ff.
+    e.g. H. Koziol, Titel, AcP 196 (1996) 593 ff.
+  Festschrift / edited volume:
+    Vorname Nachname, Titel, in: Festschrift für X, Verlagsort: Verlag, Jahr, S. X
+  Commentary:
+    KommentarName/Autor, § X, X. Aufl., Verlagsort: Verlag, Jahr, Rn. X
+  Editors:   Nachname/Nachname (Hrsg.), Titel, Verlag, Verlagsort Jahr
 
 Translated output gets 【译文】 prepended to the citation.
 
 Usage
 -----
+  # English book
   uv run cleanup_rename.py \\
       --pdf    /path/to/original.pdf \\
       --docx   temp/<slug>_cn.docx \\
       --outdir /path/to/output/ \\
-      --type   book|article \\
+      --type   book --lang en \\
       --citation "Stephen Bainbridge, Agency Partnerships & LLCs, Foundation Press (2023)" \\
       --topic  "代理、合伙、封闭公司"
 
-  # Or interactive mode (no --citation):
-  uv run cleanup_rename.py --pdf ... --docx ... --outdir ... --type book
+  # German textbook
+  uv run cleanup_rename.py \\
+      --pdf    /path/to/original.pdf \\
+      --docx   temp/<slug>_cn.docx \\
+      --outdir /path/to/output/ \\
+      --type   book --lang de \\
+      --edition "35. Aufl." \\
+      --citation "Brox/Walker, Besonderes Schuldrecht, 35. Aufl., C.H.Beck, München 2011"
 """
 
 import argparse
@@ -55,58 +72,56 @@ def _sanitize(name: str) -> str:
     return name.strip()
 
 
+def _en_author_names(people: list[str]) -> str:
+    """
+    English name joining rules:
+      1:  Firstname Lastname
+      2:  A & B
+      3:  A, B & C
+      4+: Firstname Lastname et al.
+    """
+    if len(people) == 1:
+        return people[0]
+    elif len(people) == 2:
+        return f'{people[0]} & {people[1]}'
+    elif len(people) == 3:
+        return f'{people[0]}, {people[1]} & {people[2]}'
+    else:
+        return f'{people[0]} et al.'
+
+
 def build_book_citation(authors: list[str], editors: list[str],
                         title: str, publisher: str,
                         year: str, topic: str,
                         lang: str = 'en',
                         edition: str = '') -> str:
     """
-    Build book citation string.
-    authors / editors: list of 'Firstname Lastname' strings.
-    Pass authors OR editors (not both).
+    Build book citation string for file naming.
 
     English (lang='en'):
-      1 author:   Firstname Lastname, Title, Publisher (Year)
-      2 authors:  A and B, Title, Publisher (Year)
-      3+:         Firstname Lastname et al., Title, Publisher (Year)
-      editors:    ... (ed.) / (eds.)
-
+      publisher = publisher name, year in parentheses at end.
     German (lang='de'):
-      authors joined with '/':  Hans Brox/Wolf-Dietrich Walker, Titel, Aufl. Stadt Jahr
-      editors:                  ... (Hrsg.)
-      publisher = Verlagsort (city); edition = '44. Aufl.' etc.
+      publisher = "Verlag, Verlagsort" or just Verlagsort;
+      edition = "X. Aufl." inserted before publisher;
+      authors joined with '/'.
     """
+    topic_part = f'【{topic}】' if topic else ''
+
     if lang == 'de':
         if authors:
-            names = '/'.join(authors)
-            credit = names
+            credit = '/'.join(authors)
         else:
-            names = '/'.join(editors)
-            credit = f'{names} (Hrsg.)'
-        topic_part = f'【{topic}】' if topic else ''
-        edition_part = f'{edition} ' if edition else ''
-        # German format: Author, Titel, Aufl. Verlagsort Jahr
-        return f'{topic_part}{credit}, {title}, {edition_part}{publisher} {year}'
+            credit = '/'.join(editors) + ' (Hrsg.)'
+        edition_part = f', {edition}' if edition else ''
+        return f'{topic_part}{credit}, {title}{edition_part}, {publisher} {year}'
     else:
-        # English format
         if authors:
-            if len(authors) == 1:
-                names = authors[0]
-            elif len(authors) == 2:
-                names = f'{authors[0]} and {authors[1]}'
-            else:
-                names = f'{authors[0]} et al.'
-            credit = names
+            credit = _en_author_names(authors)
         else:
-            if len(editors) == 1:
-                names = editors[0]
-            elif len(editors) == 2:
-                names = f'{editors[0]} and {editors[1]}'
-            else:
-                names = f'{editors[0]} et al.'
-            suffix = '(ed.)' if len(editors) == 1 else '(eds.)'
+            people = editors
+            names = _en_author_names(people)
+            suffix = '(ed.)' if len(people) == 1 else '(eds.)'
             credit = f'{names} {suffix}'
-        topic_part = f'【{topic}】' if topic else ''
         return f'{topic_part}{credit}, {title}, {publisher} ({year})'
 
 
@@ -117,19 +132,16 @@ def build_article_citation(authors: list[str],
                            lang: str = 'en') -> str:
     """
     English: Author(s), Title, Journal, Vol.X, p.X (Year)
-    German:  Author(s), Titel, Zeitschrift Jahr, S. X
-             (no Vol.; year before page; S. not p.)
+    German:  Author(s), Titel, ZeitschriftAbk Band (Jahr) Seite ff.
+             e.g. H. Koziol, Titel, AcP 196 (1996) 593 ff.
+             (Band = volume; Jahr in parentheses after band; S. prefix omitted in standard form)
     """
     if lang == 'de':
         names = '/'.join(authors)
-        return f'{names}, {title}, {journal} {year}, S. {page}'
+        band_part = f'{volume} ({year}) ' if volume else f'({year}) '
+        return f'{names}, {title}, {journal} {band_part}{page} ff.'
     else:
-        if len(authors) == 1:
-            names = authors[0]
-        elif len(authors) == 2:
-            names = f'{authors[0]} and {authors[1]}'
-        else:
-            names = f'{authors[0]} et al.'
+        names = _en_author_names(authors)
         return f'{names}, {title}, {journal}, Vol.{volume}, p.{page} ({year})'
 
 
@@ -168,13 +180,14 @@ def main():
     ap.add_argument('--citation', default=None,
                     help='Full citation string (skip prompts)')
     ap.add_argument('--topic',    default='',
-                    help='Book topic for 【…】 bracket (books only)')
+                    help='Topic for 【…】 bracket')
     ap.add_argument('--type',     choices=['book', 'article'], default=None,
                     help='Document type (book or article)')
     ap.add_argument('--lang',     choices=['en', 'de'], default='en',
-                    help='Citation language style: en (English) or de (German)')
+                    help='Citation style: en (English) or de (German). '
+                         'Auto-detected from PDF content if not set.')
     ap.add_argument('--edition',  default='',
-                    help='Edition string for German books, e.g. "44. Aufl."')
+                    help='Edition for German books, e.g. "35. Aufl."')
     ap.add_argument('--no-cleanup', action='store_true',
                     help='Skip deleting intermediate temp files')
     args = ap.parse_args()
@@ -189,14 +202,13 @@ def main():
         lang = args.lang
         if doc_type == 'book':
             if lang == 'de':
-                sep = '/'
-                raw_authors = input('Autoren (durch "/" getrennt, leer lassen für Herausgeber): ').strip()
-                raw_editors = input('Herausgeber (durch "/" getrennt, leer lassen für Autoren): ').strip()
+                raw_authors = input('Autoren (durch "/" getrennt, leer = Hrsg.): ').strip()
+                raw_editors = input('Herausgeber (durch "/" getrennt, leer = Autoren): ').strip()
                 title       = input('Titel: ').strip()
-                publisher   = input('Verlagsort (Stadt): ').strip()
+                publisher   = input('Verlag, Verlagsort (z.B. "C.H.Beck, München"): ').strip()
                 year        = input('Jahr: ').strip()
-                edition     = args.edition or input('Auflage (z.B. "44. Aufl.", leer lassen wenn keine): ').strip()
-                topic       = args.topic or input('Thema für 【…】 (leer lassen zum Weglassen): ').strip()
+                edition     = args.edition or input('Auflage (z.B. "35. Aufl.", leer = keine): ').strip()
+                topic       = args.topic or input('Thema für 【…】 (leer = weglassen): ').strip()
                 authors = [a.strip() for a in raw_authors.split('/') if a.strip()]
                 editors = [e.strip() for e in raw_editors.split('/') if e.strip()]
                 citation = build_book_citation(authors, editors, title, publisher,
@@ -216,8 +228,8 @@ def main():
             if lang == 'de':
                 raw_authors = input('Autoren (durch "/" getrennt): ').strip()
                 title       = input('Titel des Aufsatzes: ').strip()
-                journal     = input('Zeitschrift: ').strip()
-                volume      = ''  # not used in German style
+                journal     = input('Zeitschrift (Abkürzung, z.B. AcP, NJW): ').strip()
+                volume      = input('Band (Nummer, z.B. 196): ').strip()
                 page        = input('Anfangsseite: ').strip()
                 year        = input('Jahr: ').strip()
                 authors = [a.strip() for a in raw_authors.split('/') if a.strip()]
