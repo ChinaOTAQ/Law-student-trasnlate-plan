@@ -17,6 +17,7 @@
 - [输出文件命名规则](#输出文件命名规则)
 - [排版规格](#排版规格)
 - [文件结构](#文件结构)
+- [贡献者](#贡献者)
 
 ---
 
@@ -241,6 +242,15 @@ pdf-translate-docx/
     ├── translation_standards.md      # 完整翻译规范（每次翻译必读）
     └── workflow.md                   # 详细工作流模板与注意事项
 ```
+
+---
+
+## 贡献者
+
+| 贡献者 | 角色 |
+|--------|------|
+| [@ChinaOTAQ](https://github.com/ChinaOTAQ) | 项目发起人、工作流设计、翻译规范制定 |
+| [Claude](https://claude.ai/code) | Skill 开发、脚本实现、技术架构 |
 
 ---
 
