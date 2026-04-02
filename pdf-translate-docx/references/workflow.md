@@ -4,8 +4,8 @@
 
 ```
 temp/
-  <article>_data.py       # FOOTNOTES dict  (id → Chinese text)
-  <article>_main.py       # Document builder (imports data + docx_helpers)
+  <article>_data.py       # FOOTNOTES dict  (id → original-language text, NOT translated)
+  <article>_main.py       # Document builder: inline Chinese translation + footnotes by ID
   <article>_cn.docx       # Final output
 ```
 
@@ -25,12 +25,15 @@ Identify:
 
 ## Phase 2 — Write `<article>_data.py`
 
+**Footnotes are NOT translated.** Keep original-language citation text verbatim.
+If `_data.py` is already provided (e.g. from OCR or prior extraction), reuse it directly.
+
 Structure:
 ```python
 #!/usr/bin/env python3
 FOOTNOTES = {
-    1:  "Chinese translation of footnote 1.",
-    2:  "Chinese translation of footnote 2.",
+    1:  "K. Popper, op. cit., p. 27, 42.",
+    2:  "F. de Saussure, Cours de linguistique générale, Paris, Payot, 1916, p. 33.",
     # ...
     "192a": "Special non-integer key example.",
 }
@@ -38,7 +41,7 @@ if __name__ == '__main__':
     print(len(FOOTNOTES))
 ```
 
-**Critical:** Chinese text often contains ASCII `"` characters from quoted passages.
+**Critical:** Text may contain ASCII `"` characters from quoted passages.
 All values must use escaped inner quotes: `"He said \"hello\"."` — OR run `fix_dict_quotes.py` after writing.
 
 Run fix if needed:
@@ -102,10 +105,11 @@ def build():
              align=WD_ALIGN_PARAGRAPH.CENTER, first_line_pt=0)
 
     # ── Body sections ────────────────────────────────────────────────
+    # Translate body text INLINE in segments; footnotes by ID only (not translated)
     add_heading(doc, '一、引言', level=1)
     add_para(doc, [
-        ('正文段落文字……', 1),       # footnote 1 appended after this text
-        ('继续文字……', None),        # no footnote
+        ('这里直接写中文翻译，遇到脚注标记处断开', 1),  # footnote 1 inserted here
+        ('继续翻译后续文字……', None),                    # no footnote
     ])
     # ... repeat for every section
 
@@ -157,9 +161,11 @@ To override, pass `size_pt=`, `bold=`, `align=`, or `first_line_pt=` to `add_par
 
 ## Token budget guidance
 
+**Preferred (inline):** Write `_data.py` (original footnotes verbatim, no translation) then write `_main.py` with translated Chinese body text directly in `add_para` segments. This avoids intermediate files and is the fastest approach.
+
 For long articles (>100 footnotes), split work across two files:
-- `_data.py` — FOOTNOTES dict only
-- `_main.py` — imports data, builds document
+- `_data.py` — FOOTNOTES dict only (original language, not translated)
+- `_main.py` — imports data, builds document with inline Chinese translation
 
 This keeps each file within context and avoids token-limit cutoffs mid-write.
 
